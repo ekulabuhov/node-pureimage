@@ -1,16 +1,10 @@
-// Pure Image uses existing libraries for font parsing, jpeg/png encode/decode
+// Pure Image uses existing libraries for font parsing
 // and borrowed code for transform management and unsigned integer manipulation
 
-//2014-11-14  line count: 418, 411, 407, 376, 379, 367
-//2014-11-15  line count: 401, 399, 386, 369, 349,
-
-
 var opentype = require('opentype.js');
-var fs = require('fs');
-var PNG = require('pngjs').PNG;
-var JPEG = require('jpeg-js');
 var trans = require('./transform');
 var uint32 = require('./uint32');
+var Buffer = require('buffer/').Buffer;
 
 var NAMED_COLORS = {
     'white':0xFFFFFFff, 'black':0x000000ff,  'red':0xFF0000ff,  'green':0x00FF00ff, 'blue':0x0000FFff,
@@ -338,7 +332,7 @@ function Bitmap4BBPContext(bitmap) {
                 }
                 var glyph = cache.get(font,size,ch);
                 var fx = x+off;
-                var fy = y-glyph.ascent;
+                var fy = y -glyph.ascent;
                 var fpt = ctx.transform.transformPoint(fx,fy);
                 ctx.copyImage(glyph.bitmap, Math.floor(fpt.x), Math.floor(fpt.y), ctx._fillColor);
                 off += glyph.advance;
@@ -384,71 +378,6 @@ function Bitmap4BBPContext(bitmap) {
 exports.make = function(w,h,options) {
     return new Bitmap4BBP(w,h,options);
 }
-
-exports.encodePNG = function(bitmap, outstream, cb) {
-    var png = new PNG({
-        width:bitmap.width,
-        height:bitmap.height,
-    });
-
-    for(var i=0; i<bitmap.width; i++) {
-        for(var j=0; j<bitmap.height; j++) {
-            for(var k=0; k<4; k++) {
-                var n = (j*bitmap.width+i)*4 + k;
-                png.data[n] = bitmap._buffer[n];
-            }
-        }
-    }
-
-    png.pack().pipe(outstream).on('finish', cb);
-}
-
-exports.encodePNGSync = function(bitmap) {
-    let png = new PNG({
-        width: bitmap.width,
-        height: bitmap.height,
-    });
-
-    for (let i = 0; i < bitmap.width; i++) {
-        for (let j = 0; j < bitmap.height; j++) {
-            for (let k = 0; k < 4; k++) {
-                let n = (j * bitmap.width + i) * 4 + k;
-                png.data[n] = bitmap._buffer[n];
-            }
-        }
-    }
-
-    return PNG.sync.write(png);
-}
-
-exports.encodeJPEG = function(bitmap, outstream, cb) {
-    var data = {
-        data:bitmap._buffer,
-        width:bitmap.width,
-        height:bitmap.height,
-    }
-    outstream.write(JPEG.encode(data, 50).data);
-    if(cb)cb();
-}
-
-//TODO: Josh: finish this. turn it into a real bitmap object
-exports.decodeJPEG = function(data) {
-    var rawImageData = JPEG.decode(data);
-    console.log("Raw = ", rawImageData);
-    return rawImageData;
-}
-
-exports.decodePNG = function(instream, cb) {
-    instream.pipe(new PNG())
-    .on("parsed", function() {
-        var bitmap =  new Bitmap4BBP(this.width,this.height);
-        for(var i=0; i<bitmap._buffer.length; i++) {
-            bitmap._buffer[i] = this.data[i];
-        };
-        if(cb) cb(bitmap);
-    });
-}
-
 
 var _fonts = { }
 
